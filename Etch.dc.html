@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #17181a; }
+  a { color: #C8102E; }
+  a:hover { color: #e0324e; }
+
+  @keyframes etch-jitter {
+    0%, 100% { transform: translate(0, 0) rotate(0); }
+    8%  { transform: translate(1.2px, -3.5px) rotate(0.14deg); }
+    24% { transform: translate(-0.9px, 3.1px) rotate(-0.11deg); }
+    40% { transform: translate(1px, -2.5px) rotate(0.1deg); }
+    56% { transform: translate(-0.7px, 1.9px) rotate(-0.07deg); }
+    72% { transform: translate(0.5px, -1.3px) rotate(0.05deg); }
+    86% { transform: translate(-0.3px, 0.8px) rotate(-0.03deg); }
+  }
+</style>
+</helmet>
+<div ref="{{ rootRef }}" tabindex="0" style="position:relative; box-sizing:border-box; min-height:100vh; width:100%; background:radial-gradient(120% 120% at 50% 30%, #202124 0%, #131416 100%); font-family:'JetBrains Mono', ui-monospace, monospace; display:flex; align-items:center; justify-content:center; padding:60px 40px 90px; overflow:hidden; outline:none;">
+
+  <div ref="{{ caseRef }}" style="position:relative; width:min(88vw, 880px); box-sizing:border-box; padding:58px 40px 74px; border-radius:34px; background:linear-gradient(155deg, #ef3c34 0%, #d81e2c 42%, #b3121f 100%); box-shadow:inset 0 3px 4px rgba(255,255,255,0.45), inset 0 -6px 16px rgba(120,8,16,0.65), inset 0 0 0 1px rgba(0,0,0,0.06), 0 40px 90px rgba(0,0,0,0.55), 0 6px 18px rgba(0,0,0,0.4); display:flex; flex-direction:column;">
+
+    <div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:26px;">
+      <span style="font-size:20px; font-weight:700; letter-spacing:0.22em; color:#e7c66a; text-shadow:0 1px 1px rgba(120,8,16,0.6);">mariosumali.com</span>
+      <span ref="{{ focusDotRef }}" style="width:6px; height:6px; border-radius:50%; background:#e7c66a; opacity:0.3; transition:opacity 0.25s ease;"></span>
+    </div>
+
+    <div ref="{{ screenWrapRef }}" style="position:relative; padding:12px; border-radius:14px; background:linear-gradient(160deg, #a01019 0%, #c01824 100%); box-shadow:inset 0 2px 6px rgba(0,0,0,0.35);">
+      <div ref="{{ screenRef }}" style="position:relative; width:100%; aspect-ratio:16/10; border-radius:8px; background:linear-gradient(135deg, #ACAB9F 0%, #95948A 100%); box-shadow:inset 0 3px 10px rgba(24,23,19,0.4), inset 0 0 0 1px rgba(0,0,0,0.15); overflow:hidden;">
+        <canvas ref="{{ canvasRef }}" style="position:absolute; inset:0; width:100%; height:100%; display:block;"></canvas>
+        <div style="position:absolute; inset:0; pointer-events:none; opacity:0.16; mix-blend-mode:multiply; background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E&quot;); background-size:140px 140px;"></div>
+      </div>
+    </div>
+
+    <div ref="{{ legendRef }}" style="display:flex; align-items:center; justify-content:space-between; margin:22px 4px 0; font-size:9.5px; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.55); transition:opacity 0.8s ease;">
+      <span style="min-width:96px;">Horizontal</span>
+      <span style="text-align:center; line-height:1.7;"><span style="color:#e7c66a;">A D&nbsp;·&nbsp;W S</span>&nbsp;&nbsp;Turn&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#e7c66a;">Hold Space</span>&nbsp;&nbsp;Shake</span>
+      <span style="min-width:96px; text-align:right;">Vertical</span>
+    </div>
+
+    <div style="position:absolute; left:26px; bottom:-38px; width:96px; height:96px;">
+      <div ref="{{ leftKnobRef }}" style="width:100%; height:100%; border-radius:50%; background:repeating-conic-gradient(from 0deg, #fbfbfb 0deg 5deg, #cfcfcf 5deg 10deg); cursor:grab; touch-action:none;"></div>
+      <div style="position:absolute; inset:0; border-radius:50%; box-shadow:inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -4px 10px rgba(0,0,0,0.25), 0 8px 16px rgba(0,0,0,0.45); pointer-events:none;"></div>
+      <div style="position:absolute; inset:30%; border-radius:50%; background:radial-gradient(circle at 40% 35%, #ffffff, #e2e2e2 70%, #cfcfcf); box-shadow:inset 0 1px 2px rgba(255,255,255,0.9), 0 1px 2px rgba(0,0,0,0.25); pointer-events:none;"></div>
+    </div>
+
+    <div style="position:absolute; right:26px; bottom:-38px; width:96px; height:96px;">
+      <div ref="{{ rightKnobRef }}" style="width:100%; height:100%; border-radius:50%; background:repeating-conic-gradient(from 0deg, #fbfbfb 0deg 5deg, #cfcfcf 5deg 10deg); cursor:grab; touch-action:none;"></div>
+      <div style="position:absolute; inset:0; border-radius:50%; box-shadow:inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -4px 10px rgba(0,0,0,0.25), 0 8px 16px rgba(0,0,0,0.45); pointer-events:none;"></div>
+      <div style="position:absolute; inset:30%; border-radius:50%; background:radial-gradient(circle at 40% 35%, #ffffff, #e2e2e2 70%, #cfcfcf); box-shadow:inset 0 1px 2px rgba(255,255,255,0.9), 0 1px 2px rgba(0,0,0,0.25); pointer-events:none;"></div>
+    </div>
+
+    <button ref="{{ motionRef }}" onClick="{{ requestMotion }}" style="display:none; position:absolute; left:50%; bottom:-38px; transform:translateX(-50%); background:rgba(0,0,0,0.25); color:#fff; font-family:inherit; font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; border:1px solid rgba(255,255,255,0.4); border-radius:6px; padding:9px 16px; cursor:pointer;">Allow motion access to shake and erase</button>
+  </div>
+
+  <div ref="{{ phoneRef }}" style="display:none; position:absolute; inset:0; background:#17181a; align-items:center; justify-content:center; padding:40px; text-align:center;">
+    <div style="max-width:340px;">
+      <div style="font-size:22px; font-weight:700; letter-spacing:0.3em; color:#e7c66a; margin-bottom:20px;">ETCH</div>
+      <p style="font-size:13px; line-height:1.7; letter-spacing:0.04em; color:rgba(255,255,255,0.6); margin:0; font-family:'JetBrains Mono', monospace;">Needs a keyboard. Open this on a laptop or a tablet with one attached.</p>
+    </div>
+  </div>
+
+  <div ref="{{ liveRef }}" aria-live="polite" style="position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  rootRef = React.createRef();
+  caseRef = React.createRef();
+  legendRef = React.createRef();
+  screenWrapRef = React.createRef();
+  screenRef = React.createRef();
+  canvasRef = React.createRef();
+  leftKnobRef = React.createRef();
+  rightKnobRef = React.createRef();
+  focusDotRef = React.createRef();
+  motionRef = React.createRef();
+  phoneRef = React.createRef();
+  liveRef = React.createRef();
+
+  renderVals() {
+    return {
+      rootRef: this.rootRef, caseRef: this.caseRef, legendRef: this.legendRef,
+      screenWrapRef: this.screenWrapRef, screenRef: this.screenRef, canvasRef: this.canvasRef,
+      leftKnobRef: this.leftKnobRef, rightKnobRef: this.rightKnobRef, focusDotRef: this.focusDotRef,
+      motionRef: this.motionRef, phoneRef: this.phoneRef, liveRef: this.liveRef,
+      requestMotion: () => this.requestMotion(),
+    };
+  }
+
+  componentDidMount() {
+    this.held = new Set();
+    this.pts = [{ x: 0.5, y: 0.5 }];
+    this.sx = 0; this.sy = 0; this.lx = 0; this.ly = 0;
+    this.w = 0; this.h = 0; this.dpr = 1; this.speed = 3;
+    this.leftAngle = 0; this.rightAngle = 0;
+    this.penx = 0; this.peny = 0; this.grid = 3;
+    this.vel = { x: 0, y: 0 };
+    this.eraseState = 'idle';
+    this.lastErase = 0;
+    this.lastActivity = performance.now();
+    this.chromeActive = true;
+    this.spaceHeld = false; this.spaceTimer = null;
+    this.mouseBuf = [];
+    this.motionBuf = [];
+
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const noFine = window.matchMedia && !window.matchMedia('(any-pointer: fine)').matches;
+    if (coarse && noFine && Math.min(window.innerWidth, window.innerHeight) < 620) {
+      this.caseRef.current.style.display = 'none';
+      this.phoneRef.current.style.display = 'flex';
+      return;
+    }
+
+    const cv = this.canvasRef.current;
+    this.ctx = cv.getContext('2d');
+    this.resize();
+
+    this._onKeyDown = (e) => this.onKeyDown(e);
+    this._onKeyUp = (e) => this.onKeyUp(e);
+    this._onResize = () => this.resize();
+    this._onFocus = () => { if (this.focusDotRef.current) this.focusDotRef.current.style.opacity = '1'; };
+    this._onBlur = () => { if (this.focusDotRef.current) this.focusDotRef.current.style.opacity = '0.3'; this.held.clear(); };
+    this._onMove = (e) => this.onMouseMove(e);
+    this._onMotion = (e) => this.onMotion(e);
+
+    window.addEventListener('keydown', this._onKeyDown, { passive: false });
+    window.addEventListener('keyup', this._onKeyUp);
+    window.addEventListener('resize', this._onResize);
+    window.addEventListener('focus', this._onFocus);
+    window.addEventListener('blur', this._onBlur);
+    this.screenRef.current.addEventListener('mousemove', this._onMove);
+    if (document.hasFocus()) this._onFocus();
+
+    if (typeof DeviceMotionEvent !== 'undefined') {
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        this.motionRef.current.style.display = 'block';
+      } else {
+        window.addEventListener('devicemotion', this._onMotion);
+      }
+    }
+
+    this.setupKnob(this.leftKnobRef.current, 'x');
+    this.setupKnob(this.rightKnobRef.current, 'y');
+
+    this.rootRef.current.focus();
+    this.raf = requestAnimationFrame(() => this.tick());
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.raf);
+    window.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('keyup', this._onKeyUp);
+    window.removeEventListener('resize', this._onResize);
+    window.removeEventListener('focus', this._onFocus);
+    window.removeEventListener('blur', this._onBlur);
+    window.removeEventListener('devicemotion', this._onMotion);
+    if (this.screenRef.current) this.screenRef.current.removeEventListener('mousemove', this._onMove);
+    if (this.spaceTimer) clearTimeout(this.spaceTimer);
+  }
+
+  resize() {
+    const cv = this.canvasRef.current;
+    const r = cv.getBoundingClientRect();
+    const prevW = this.w, prevH = this.h;
+    this.dpr = window.devicePixelRatio || 1;
+    this.w = r.width; this.h = r.height;
+    cv.width = Math.round(this.w * this.dpr);
+    cv.height = Math.round(this.h * this.dpr);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.speed = Math.max(1.3, Math.min(this.w, this.h) * 0.0026) * 0.6;
+    this.grid = Math.max(1, Math.min(this.w, this.h) * 0.0015);
+    if (!prevW) { this.sx = this.w / 2; this.sy = this.h / 2; }
+    else {
+      const fx = this.sx / prevW, fy = this.sy / prevH;
+      this.sx = fx * this.w; this.sy = fy * this.h;
+    }
+    this.penx = this.sx; this.peny = this.sy;
+    this.replay();
+  }
+
+  replay() {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.w, this.h);
+    if (this.pts.length < 2) return;
+    ctx.strokeStyle = '#181713';
+    ctx.lineWidth = 1.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(this.pts[0].x * this.w, this.pts[0].y * this.h);
+    for (let i = 1; i < this.pts.length; i++) ctx.lineTo(this.pts[i].x * this.w, this.pts[i].y * this.h);
+    ctx.stroke();
+  }
+
+  onKeyDown(e) {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (!this.spaceHeld) {
+        this.spaceHeld = true;
+        this.spaceTimer = setTimeout(() => this.triggerErase('space'), 600);
+      }
+      this.activity();
+      return;
+    }
+    const k = e.key.toLowerCase();
+    if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) e.preventDefault();
+    if (['a', 'd', 'w', 's', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) {
+      this.held.add(k);
+      this.activity();
+    }
+  }
+
+  onKeyUp(e) {
+    if (e.code === 'Space') {
+      this.spaceHeld = false;
+      if (this.spaceTimer) { clearTimeout(this.spaceTimer); this.spaceTimer = null; }
+      return;
+    }
+    this.held.delete(e.key.toLowerCase());
+  }
+
+  onMouseMove(e) {
+    const now = performance.now();
+    this.mouseBuf.push({ t: now, x: e.clientX, y: e.clientY });
+    while (this.mouseBuf.length && now - this.mouseBuf[0].t > 500) this.mouseBuf.shift();
+    if (this.mouseBuf.length < 8) return;
+    let dist = 0, revX = 0, revY = 0, pdx = 0, pdy = 0;
+    for (let i = 1; i < this.mouseBuf.length; i++) {
+      const dx = this.mouseBuf[i].x - this.mouseBuf[i - 1].x;
+      const dy = this.mouseBuf[i].y - this.mouseBuf[i - 1].y;
+      dist += Math.hypot(dx, dy);
+      if (dx * pdx < 0) revX++;
+      if (dy * pdy < 0) revY++;
+      if (dx) pdx = dx;
+      if (dy) pdy = dy;
+    }
+    if (dist > 420 && (revX + revY) >= 6) {
+      this.mouseBuf = [];
+      this.triggerErase('mouse');
+    }
+  }
+
+  onMotion(e) {
+    const a = e.accelerationIncludingGravity || e.acceleration;
+    if (!a || a.x == null) return;
+    const mag = Math.hypot(a.x || 0, a.y || 0, a.z || 0);
+    this.motionBuf.push(mag);
+    if (this.motionBuf.length > 10) this.motionBuf.shift();
+    if (this.motionBuf.length >= 6) {
+      const mn = Math.min(...this.motionBuf), mx = Math.max(...this.motionBuf);
+      if (mx - mn > 22) { this.motionBuf = []; this.triggerErase('motion'); }
+    }
+  }
+
+  requestMotion() {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission().then((state) => {
+        if (state === 'granted') {
+          window.addEventListener('devicemotion', this._onMotion);
+          this.motionRef.current.style.display = 'none';
+        }
+      }).catch(() => {});
+    }
+  }
+
+  setupKnob(el, axis) {
+    let prev = 0;
+    const center = () => { const r = el.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; };
+    const angleAt = (e) => { const { cx, cy } = center(); return Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI; };
+    const onDown = (e) => {
+      e.preventDefault();
+      this.dragging = axis;
+      this.vel[axis] = 0;
+      prev = angleAt(e);
+      el.style.cursor = 'grabbing';
+      el.setPointerCapture && el.setPointerCapture(e.pointerId);
+      this.activity();
+    };
+    const onMove = (e) => {
+      if (this.dragging !== axis) return;
+      const { cx, cy } = center();
+      const r = Math.hypot(e.clientX - cx, e.clientY - cy);
+      if (r < 12) { prev = angleAt(e); return; } // near hub: angle is unstable, skip
+      const a = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+      let d = a - prev;
+      if (d > 180) d -= 360; else if (d < -180) d += 360;
+      prev = a;
+      if (d > 22) d = 22; else if (d < -22) d = -22; // guard against teleport jumps
+      this.vel[axis] = d; // remember spin for release momentum
+      const px = d * (this.speed * 0.145);
+      if (axis === 'x') { this.leftAngle += d; this.moveBy(px, 0); }
+      else { this.rightAngle += d; this.moveBy(0, px); }
+      this.activity();
+    };
+    const onUp = () => { if (this.dragging === axis) { this.dragging = null; el.style.cursor = 'grab'; } };
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  moveBy(mx, my) {
+    if (this.eraseState !== 'idle' || !this.w) return;
+    this.sx = Math.max(0, Math.min(this.w, this.sx + mx));
+    this.sy = Math.max(0, Math.min(this.h, this.sy + my));
+    // snap the stylus to the wire grid — this is what stair-steps diagonals
+    const gx = Math.round(this.sx / this.grid) * this.grid;
+    const gy = Math.round(this.sy / this.grid) * this.grid;
+    if (gx === this.penx && gy === this.peny) return;
+    const ctx = this.ctx;
+    ctx.strokeStyle = '#181713';
+    ctx.lineWidth = 1.1 + Math.random() * 0.22; // slight powder roughness
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const jx = (Math.random() - 0.5) * 0.35, jy = (Math.random() - 0.5) * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(this.penx, this.peny);
+    ctx.lineTo(gx + jx, gy + jy);
+    ctx.stroke();
+    this.penx = gx; this.peny = gy;
+    this.pts.push({ x: gx / this.w, y: gy / this.h });
+  }
+
+  activity() {
+    this.lastActivity = performance.now();
+    if (!this.chromeActive) {
+      this.chromeActive = true;
+      this.legendRef.current.style.opacity = '1';
+    }
+  }
+
+  // one source of truth: the case shakes for exactly as long as the powder clears
+  eraseDuration() { return 1260; }
+
+  triggerErase(src) {
+    const now = performance.now();
+    if (this.eraseState !== 'idle' || now - this.lastErase < 1800) return;
+    this.lastErase = now;
+    this.eraseState = 'jitter';
+    const el = this.caseRef.current;
+    if (el) {
+      el.style.animation = 'none';
+      void el.offsetWidth; // force reflow so the animation restarts every erase
+      // one pass over the whole erase: the decay lives in the keyframes, so it
+      // swings hardest as the powder starts clearing and settles as it finishes
+      el.style.animation = 'etch-jitter ' + this.eraseDuration() + 'ms ease-in-out';
+    }
+    this.dissolve();
+  }
+
+  dissolve() {
+    this.eraseState = 'dissolve';
+    const ctx = this.ctx;
+    const cx = this.sx, cy = this.sy;
+    const max = Math.max(
+      Math.hypot(cx, cy), Math.hypot(this.w - cx, cy),
+      Math.hypot(cx, this.h - cy), Math.hypot(this.w - cx, this.h - cy)
+    ) + 24;
+    const t0 = performance.now();
+    const dur = this.eraseDuration();
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      const r = p * max;
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (p < 1) requestAnimationFrame(step);
+      else this.finishErase();
+    };
+    requestAnimationFrame(step);
+  }
+
+  finishErase() {
+    const el = this.caseRef.current;
+    if (el) el.style.animation = 'none'; // settle the case back to rest
+    this.ctx.clearRect(0, 0, this.w, this.h);
+    // stylus holds its position through a shake — only the powder clears.
+    // seed the path from where it actually is so a resize replays from there.
+    this.vel.x = 0; this.vel.y = 0;
+    this.pts = [{ x: this.sx / this.w, y: this.sy / this.h }];
+    this.eraseState = 'idle';
+    if (this.liveRef.current) this.liveRef.current.textContent = 'Screen erased';
+    this.activity();
+  }
+
+  tick() {
+    const now = performance.now();
+    if (this.chromeActive && now - this.lastActivity > 4000) {
+      this.chromeActive = false;
+      this.legendRef.current.style.opacity = '0.28';
+    }
+
+    if (this.eraseState === 'idle') {
+      let dx = 0, dy = 0;
+      const h = this.held;
+      if (h.has('a') || h.has('arrowleft')) dx -= 1;
+      if (h.has('d') || h.has('arrowright')) dx += 1;
+      if (h.has('w') || h.has('arrowup')) dy -= 1;
+      if (h.has('s') || h.has('arrowdown')) dy += 1;
+      if (dx) this.leftAngle += dx * this.speed * 1.7;
+      if (dy) this.rightAngle += dy * this.speed * 1.7;
+      if (dx || dy) this.moveBy(dx * this.speed, dy * this.speed);
+    }
+
+    // knob fling-momentum: heavy dials coast to a stop after release
+    if (this.eraseState === 'idle') {
+      if (this.dragging !== 'x' && Math.abs(this.vel.x) > 0.35) {
+        this.leftAngle += this.vel.x;
+        this.moveBy(this.vel.x * this.speed * 0.145, 0);
+        this.vel.x *= 0.9;
+      } else if (this.dragging !== 'x') this.vel.x = 0;
+      if (this.dragging !== 'y' && Math.abs(this.vel.y) > 0.35) {
+        this.rightAngle += this.vel.y;
+        this.moveBy(0, this.vel.y * this.speed * 0.145);
+        this.vel.y *= 0.9;
+      } else if (this.dragging !== 'y') this.vel.y = 0;
+    }
+
+    if (this.leftKnobRef.current) {
+      this.leftKnobRef.current.style.transform = 'rotate(' + this.leftAngle + 'deg)';
+      this.rightKnobRef.current.style.transform = 'rotate(' + this.rightAngle + 'deg)';
+    }
+
+    this.raf = requestAnimationFrame(() => this.tick());
+  }
+}
+</script>
+</body>
+</html>
