@@ -16,10 +16,13 @@ Open `Etch.dc.html` in a browser.
 - **Hold Space** — shake the whole thing and erase the screen
 - Shaking the mouse back and forth fast enough also triggers an erase
 - On a phone or tablet with a motion sensor, physically shaking the device erases it too
+- **Save PNG** — download whatever's on the screen right now as a PNG, knobs and all
 
 ![Mid-doodle](screenshots/doodle.png)
 
 ## Draw an image
+
+![Drawn from an image](screenshots/draw-image.png)
 
 Hit **Draw Image**, pick a picture, and the toy draws it for you — centred on the
 screen, by turning its own knobs. Nothing is pasted onto the canvas; every mark
