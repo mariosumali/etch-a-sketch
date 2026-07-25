@@ -6,7 +6,9 @@ A browser-based Etch A Sketch.
 
 ## Try it
 
-Open `Etch.dc.html` in a browser.
+[sketch.mariosumali.com](https://sketch.mariosumali.com)
+
+Or open `Etch.dc.html` in a browser.
 
 ## Controls
 
