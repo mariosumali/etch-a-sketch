@@ -216,7 +216,7 @@ class Component extends DCLogic {
     this.leftAngle = 0; this.rightAngle = 0;
     this.vel = { x: 0, y: 0 };
     this.knobDrag = { x: false, y: false };
-    this.eraseState = 'idle'; this.lastErase = -Infinity; // 0 would cooldown-block erases right after load
+    this.eraseState = 'idle'; this.lastErase = -Infinity;
     this.chromeActive = true; this.fadeTimer = null;
     this.spaceHeld = false; this.spaceTimer = null;
     this.saveTimer = null; this.hasInk = false;
@@ -232,7 +232,6 @@ class Component extends DCLogic {
     this.resize();
     this.restore();
 
-    // stashed so the auto-draw status line can borrow the legend and hand it back
     this.legendHtml = this.legendCenterRef.current ? this.legendCenterRef.current.innerHTML : '';
     if (this.touchOnly && this.legendCenterRef.current) {
       this.legendCenterRef.current.textContent = 'Drag knobs to draw · Shake to erase';
@@ -247,7 +246,6 @@ class Component extends DCLogic {
       if (e.relatedTarget && root.contains(e.relatedTarget)) return;
       this.releaseInputs();
     };
-    // clicks anywhere on the toy keep keyboard focus inside it (Safari won't do this for buttons)
     this._onRootPointerDown = (e) => {
       if (e.target && e.target.closest && e.target.closest('.etch-knob')) return;
       if (!root.contains(document.activeElement)) root.focus({ preventScroll: true });
@@ -258,8 +256,6 @@ class Component extends DCLogic {
     this._onFilePicked = (e) => this.onFilePicked(e);
     if (this.fileRef.current) this.fileRef.current.addEventListener('change', this._onFilePicked);
 
-    // key handling lives on the root, so it only fires when focus is inside the toy —
-    // embedded on a page, Space and the arrows scroll normally everywhere else
     root.addEventListener('keydown', this._onKeyDown);
     root.addEventListener('keyup', this._onKeyUp);
     root.addEventListener('focusout', this._onFocusOut);
@@ -329,8 +325,6 @@ class Component extends DCLogic {
     this.speed = Math.max(1.3, Math.min(this.w, this.h) * 0.0026 * 0.65);
     this.grid = Math.max(1, Math.min(this.w, this.h) * 0.0015);
 
-    // the drawing lives on an offscreen buffer — scale-blit it into a fresh one
-    // so resizes keep the powder texture instead of re-stroking a cleaned-up copy
     const nb = document.createElement('canvas');
     nb.width = Math.round(this.w * this.dpr);
     nb.height = Math.round(this.h * this.dpr);
@@ -343,7 +337,7 @@ class Component extends DCLogic {
     else { this.sx = (this.sx / prevW) * this.w; this.sy = (this.sy / prevH) * this.h; }
     this.penx = this.sx; this.peny = this.sy;
 
-    if (erasing) this.finishErase(); // a resize mid-dissolve completes the erase instead of resurrecting the drawing
+    if (erasing) this.finishErase();
     this.render();
     this.updateKnobAria();
   }
@@ -355,7 +349,7 @@ class Component extends DCLogic {
   }
 
   onKeyDown(e) {
-    if (e.target && e.target.tagName === 'BUTTON') return; // let Space/Enter activate buttons
+    if (e.target && e.target.tagName === 'BUTTON') return;
     if (this.auto && (e.key === '1' || e.key === '2' || e.key === '4')) {
       e.preventDefault();
       this.setSpeed(Number(e.key));
@@ -363,7 +357,7 @@ class Component extends DCLogic {
     }
     if (e.code === 'Space') {
       e.preventDefault();
-      this.cancelAuto(); // taking the knobs back stops the machine drawing
+      this.cancelAuto();
       if (!this.spaceHeld) {
         this.spaceHeld = true;
         this.spaceTimer = setTimeout(() => { this.spaceTimer = null; this.triggerErase('space'); }, 600);
@@ -415,7 +409,7 @@ class Component extends DCLogic {
   }
 
   setupKnob(el, axis) {
-    let prev = 0, pid = null; // per-knob pointer id — both knobs can spin at once (two thumbs)
+    let prev = 0, pid = null;
     const center = () => { const r = el.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; };
     const onDown = (e) => {
       if (pid !== null) return;
@@ -435,13 +429,13 @@ class Component extends DCLogic {
       if (e.pointerId !== pid) return;
       const { cx, cy } = center();
       const rad = Math.hypot(e.clientX - cx, e.clientY - cy);
-      if (rad < 12) { prev = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI; return; } // near hub: angle is unstable, skip
+      if (rad < 12) { prev = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI; return; }
       const a = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
       let d = a - prev;
       if (d > 180) d -= 360; else if (d < -180) d += 360;
       prev = a;
-      if (d > 22) d = 22; else if (d < -22) d = -22; // guard against teleport jumps
-      this.vel[axis] = d; // remember spin for release momentum
+      if (d > 22) d = 22; else if (d < -22) d = -22;
+      this.vel[axis] = d;
       this.spin(axis, d);
       const px = d * (this.speed * 0.145);
       if (axis === 'x') this.moveBy(px, 0);
@@ -453,7 +447,7 @@ class Component extends DCLogic {
       pid = null;
       this.knobDrag[axis] = false;
       el.classList.remove('is-grabbing');
-      if (Math.abs(this.vel[axis]) > 0.35) this.ensureLoop(); // let the fling coast
+      if (Math.abs(this.vel[axis]) > 0.35) this.ensureLoop();
     };
     el.addEventListener('pointerdown', onDown);
     el.addEventListener('pointermove', onMove);
@@ -477,19 +471,16 @@ class Component extends DCLogic {
     }
   }
 
-  // `defer` batches the expensive follow-up work — auto-draw issues dozens of these
-  // per frame and does one render / aria / save pass at the end instead
   moveBy(mx, my, defer) {
     if (this.eraseState !== 'idle' || !this.w) return;
     this.sx = Math.max(0, Math.min(this.w, this.sx + mx));
     this.sy = Math.max(0, Math.min(this.h, this.sy + my));
-    // snap the stylus to the wire grid — this is what stair-steps diagonals
     const gx = Math.round(this.sx / this.grid) * this.grid;
     const gy = Math.round(this.sy / this.grid) * this.grid;
     if (gx === this.penx && gy === this.peny) return;
     const c = this.bctx;
-    c.strokeStyle = 'rgba(24, 23, 19, 0.7)'; // semi-transparent so retracing a line builds it darker, like real powder
-    c.lineWidth = 1.1 + Math.random() * 0.22; // slight powder roughness
+    c.strokeStyle = 'rgba(24, 23, 19, 0.7)';
+    c.lineWidth = 1.1 + Math.random() * 0.22;
     c.lineCap = 'round'; c.lineJoin = 'round';
     const jx = (Math.random() - 0.5) * 0.35, jy = (Math.random() - 0.5) * 0.35;
     c.beginPath();
@@ -537,11 +528,8 @@ class Component extends DCLogic {
     }, 4000);
   }
 
-  // one source of truth: the case shakes for exactly as long as the powder clears
   eraseDuration() { return 1260; }
 
-  // `force` skips the cooldown — the auto-draw's clearing shake must always land,
-  // or the travel line it just drew to the start point would survive on screen
   triggerErase(src, force) {
     const now = performance.now();
     if (this.eraseState !== 'idle' || (!force && now - this.lastErase < 1800)) return;
@@ -549,9 +537,7 @@ class Component extends DCLogic {
     const el = this.caseRef.current;
     if (el && !this.reduced) {
       el.style.animation = 'none';
-      void el.offsetWidth; // force reflow so the animation restarts every erase
-      // one pass over the whole erase: the decay lives in the keyframes, so it
-      // swings hardest as the powder starts clearing and settles as it finishes
+      void el.offsetWidth;
       el.style.animation = 'etch-jitter ' + this.eraseDuration() + 'ms ease-in-out';
     }
     this.dissolve();
@@ -568,10 +554,7 @@ class Component extends DCLogic {
     const t0 = performance.now();
     const dur = this.eraseDuration();
     const step = (t) => {
-      // bail if unmounted, or a resize already completed this erase (buffer was swapped)
       if (this.dead || this.eraseState !== 'dissolve' || c !== this.bctx) return;
-      // clamp both ends: the first rAF timestamp can predate t0 by a frame,
-      // and a negative radius makes arc() throw — which would strand the erase
       const p = Math.max(0, Math.min(1, (t - t0) / dur));
       c.save();
       c.globalCompositeOperation = 'destination-out';
@@ -588,9 +571,8 @@ class Component extends DCLogic {
 
   finishErase() {
     const el = this.caseRef.current;
-    if (el) el.style.animation = 'none'; // settle the case back to rest
+    if (el) el.style.animation = 'none';
     if (this.bctx) this.bctx.clearRect(0, 0, this.w, this.h);
-    // stylus holds its position through a shake — only the powder clears
     this.penx = Math.round(this.sx / this.grid) * this.grid;
     this.peny = Math.round(this.sy / this.grid) * this.grid;
     this.vel.x = 0; this.vel.y = 0;
@@ -598,7 +580,7 @@ class Component extends DCLogic {
     this.hasInk = false;
     this.clearSaved();
     this.render();
-    if (!this.auto) this.announce('Screen erased'); // mid-auto-draw this is just the clearing shake
+    if (!this.auto) this.announce('Screen erased');
     this.activity();
   }
 
@@ -610,7 +592,6 @@ class Component extends DCLogic {
     this.raf = null;
     if (this.dead) return;
 
-    // runs outside the idle guard below — the state machine has to watch the erase finish
     if (this.auto) this.stepAuto(performance.now());
 
     if (this.eraseState === 'idle') {
@@ -624,7 +605,6 @@ class Component extends DCLogic {
       if (dy) this.spin('y', dy * this.speed * 1.7);
       if (dx || dy) this.moveBy(dx * this.speed, dy * this.speed);
 
-      // knob fling-momentum: heavy dials coast to a stop after release
       if (!this.knobDrag.x) {
         if (Math.abs(this.vel.x) > 0.35) {
           this.spin('x', this.vel.x);
@@ -641,8 +621,6 @@ class Component extends DCLogic {
       }
     }
 
-    // keep looping only while something is actually in motion — otherwise sleep
-    // until the next keydown / knob release wakes us via ensureLoop()
     const active = this.held.size > 0 || !!this.auto
       || Math.abs(this.vel.x) > 0.35 || Math.abs(this.vel.y) > 0.35;
     if (active) this.raf = requestAnimationFrame(this._tick);
@@ -664,7 +642,7 @@ class Component extends DCLogic {
         x: this.sx / this.w,
         y: this.sy / this.h,
       }));
-    } catch (_) {} // quota / privacy mode — the toy still works without persistence
+    } catch (_) {}
   }
 
   clearSaved() {
@@ -715,11 +693,6 @@ class Component extends DCLogic {
     if (this.liveRef.current) this.liveRef.current.textContent = msg;
   }
 
-  // ── drawing an uploaded image ──────────────────────────────────────────────
-  // The stylus can never lift, so an image becomes ONE long polyline: traced
-  // contours ordered nearest-neighbour, with the straight hops between them
-  // drawn in as visible connectors. Nothing is ever blitted onto the screen —
-  // every mark below goes through moveBy(), the same path a turned knob takes.
 
   onDrawClick() {
     if (this.auto) { this.cancelAuto(); return; }
@@ -729,7 +702,7 @@ class Component extends DCLogic {
   onFilePicked(e) {
     const input = e.target;
     const file = input.files && input.files[0];
-    input.value = ''; // so picking the same file twice still fires change
+    input.value = '';
     if (!file) return;
     if (!/^image\//.test(file.type)) { this.announce('That file is not an image'); return; }
     const rd = new FileReader();
@@ -745,16 +718,11 @@ class Component extends DCLogic {
         if (!plan || plan.pts.length < 2) { this.announce('No edges found in that image'); return; }
         this.startAutoDraw(plan.pts, plan.cut);
       };
-      // a data: URL never taints the canvas — a blob: URL on a file:// page can,
-      // which would break Save PNG and the localStorage snapshot
       im.src = rd.result;
     };
     rd.readAsDataURL(file);
   }
 
-  // where the picture sits on the screen — centred with an even margin. Shared
-  // so the preview you click on and the raster that gets analysed are the same
-  // rectangle, which is the whole basis for turning a click into a pixel.
   fitImage(img) {
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
     if (!iw || !ih || !this.w || !this.h) return null;
@@ -764,10 +732,6 @@ class Component extends DCLogic {
     return { dw, dh, ox: (this.w - dw) / 2, oy: (this.h - dh) / 2 };
   }
 
-  // The analysis raster: the picture drawn small, with a long side capped so
-  // every pass over it stays cheap. One place, so the preview you click on and
-  // the raster that gets traced are the same pixels — a click means nothing
-  // otherwise.
   rasterise(img, box) {
     const s = Math.min(1, 640 / Math.max(box.dw, box.dh));
     const aw = Math.max(3, Math.round(box.dw * s)), ah = Math.max(3, Math.round(box.dh * s));
@@ -782,7 +746,6 @@ class Component extends DCLogic {
     const gray = new Float32Array(n), rgb = new Uint8Array(n * 3), alpha = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       const j = i * 4, a = px[j + 3] / 255, inv = 255 * (1 - a);
-      // composite onto white so a transparent PNG doesn't read as a black slab
       const r = px[j] * a + inv, g = px[j + 1] * a + inv, b = px[j + 2] * a + inv;
       rgb[i * 3] = r; rgb[i * 3 + 1] = g; rgb[i * 3 + 2] = b;
       alpha[i] = a;
@@ -791,16 +754,6 @@ class Component extends DCLogic {
     return { aw, ah, n, rgb, gray, alpha };
   }
 
-  // image → a single flat list of {x, y} in normalised 0..1 screen coords.
-  // Normalised so a mid-draw window resize just rescales instead of breaking.
-  //
-  // Three steps before a single line is traced: lift the subject off its
-  // background, reduce what's left to black and white, and only then look for
-  // lines. That order matters. Chasing gradient edges across a whole photo
-  // spends most of the ink on wallpaper and foliage, and grey is a tone this
-  // toy does not have — the stylus is either down or it isn't. Deciding
-  // black-or-white up front, with a local threshold, is the same decision the
-  // drawing has to make anyway, made once and made properly.
   imageToPaths(img, seeds) {
     const box = this.fitImage(img);
     if (!box) return null;
@@ -813,26 +766,13 @@ class Component extends DCLogic {
     const { mag, gx, gy } = this.colorSobel(rgb, aw, ah);
     const nms = this.suppress(mag, gx, gy, aw, ah);
 
-    // The noise floor, read off the border — the one part of a picture that can
-    // be assumed background rather than subject. Everything below has to clear
-    // it before calling something an edge.
     const grain = this.borderGrain(mag, aw, ah);
 
-    // 1 — the subject. A transparent PNG has already answered where it is;
-    //     otherwise saliency picks the likeliest points and the watershed does
-    //     the separating. Nothing is asked of anyone: this is a toy with two
-    //     knobs and a screen, and it shouldn't sprout a selection tool.
     const sal = this.saliency(rgb, aw, ah);
     let mask = this.alphaMask(alpha, aw, ah);
     let keep = 0;
     for (let i = 0; i < n; i++) keep += mask[i];
-    if (keep < n * 0.01) { mask.fill(1); keep = n; } // almost nothing opaque
-    // Only bother when the background is actually costing something. A subject
-    // on a white page or a smooth wall has no background ink to save — cutting
-    // it out can only lose a piece of the subject, and on a logo it does
-    // exactly that, quietly dropping one of the marks. Measured at the border:
-    // a plain backdrop reads under 1, a photograph taken somewhere reads 16 and
-    // up. So the guessing only ever runs where the old behaviour was bad.
+    if (keep < n * 0.01) { mask.fill(1); keep = n; }
     if (keep === n && grain > 6) {
       const found = this.seededMask(rgb, mag, this.seedPoints(sal, aw, ah), aw, ah);
       let got = 0, x0 = aw, x1 = -1, y0 = ah, y1 = -1;
@@ -845,30 +785,14 @@ class Component extends DCLogic {
         if (y < y0) y0 = y;
         if (y > y1) y1 = y;
       }
-      // Believe it only if what came back looks like a thing. Too little and the
-      // guess landed on a speck; too much and it swallowed the room; too thinly
-      // spread across its own bounding box and it isn't an object at all, it's
-      // fragments — a portrait whose face was too close in colour to the wall
-      // comes back as the hair and the shirt with a head-shaped hole between
-      // them, which is far worse than not trying.
-      //
-      // The threshold sits high on purpose, because the two mistakes don't cost
-      // the same. Refusing a good cutout just draws the whole picture, which is
-      // what this did for years. Accepting a bad one draws somebody's haircut
-      // floating above their shirt.
       const box = got ? (x1 - x0 + 1) * (y1 - y0 + 1) : 1;
       if (got > n * 0.03 && got < n * 0.92 && got > box * 0.45) { mask = found; keep = got; }
     }
     const cut = keep < n;
 
-    // 2 — black and white, decided over a mask pulled in far enough to clear
-    //     the halo of half-blended pixels that lines a cutout edge
     const inner = this.erode(mask, aw, ah, 2);
     const dark = this.bilevel(gray, inner, aw, ah);
 
-    // 3 — three grades of line, drawn in this order for as long as the ink
-    //     lasts: the silhouette, the black/white borders inside it, then any
-    //     soft tonal edge the threshold flattened away
     const outline = this.maskOutline(mask, aw, ah);
     const regions = this.regionOutline(dark, inner, aw, ah);
     const claimed = new Uint8Array(n);
@@ -878,21 +802,7 @@ class Component extends DCLogic {
     const kx = dw / aw, ky = dh / ah;
     const paths = [];
     const tiers = [outline, regions, detail];
-    // A black-and-white border is only worth drawing if there's an edge under
-    // it. Threshold a smooth gradient — the side of a mug, a cheek turning away
-    // from the light — and you get a contour wherever the tone crosses its own
-    // local average: a long, confident line that corresponds to nothing anyone
-    // can see in the picture. Under the false ones the gradient reads 3 to 20;
-    // under the real ones, 50 to 700. So: most of a contour has to sit on
-    // something before it counts.
     const real = Math.max(24, grain * 2);
-    // With no mask, nothing has been thrown away and the whole frame is in play,
-    // so the ink budget needs an opinion about what matters. Saliency gives it
-    // one: contours crossing colours that stand out from the picture's average
-    // are ranked ahead of contours that don't, which on a photo means the
-    // subject ahead of the wall behind it. It only ever reorders — nothing is
-    // dropped on its say-so — so unlike a mask it can't take a bite out of
-    // anything. When there is a mask, this has already been settled properly.
     const rank = cut ? null : sal;
     const salTop = rank ? Math.max(1, this.percentile(rank, 0.9)) : 1;
     for (let t = 0; t < tiers.length; t++) {
@@ -906,7 +816,7 @@ class Component extends DCLogic {
         const simple = this.rdp(pts, 0.6);
         let len = 0;
         for (let i = 1; i < simple.length; i++) len += Math.hypot(simple[i].x - simple[i - 1].x, simple[i].y - simple[i - 1].y);
-        if (len < 8) continue; // noise speckle — and every contour kept costs a connector stroke
+        if (len < 8) continue;
         let weight = 1;
         if (rank) {
           let s = 0;
@@ -917,27 +827,13 @@ class Component extends DCLogic {
       }
     }
     if (!paths.length) return null;
-    // Tier first, then the most worth drawing inside the tier, then spend the
-    // ink budget and stop. There's only so much line you can lay down before a
-    // drawing turns to mush, so the order decides what survives: the shape of
-    // the thing, then the big tonal masses inside it, then detail — rather than
-    // whatever happened to trace first.
     paths.sort((a, b) => a.tier - b.tier || b.score - a.score);
 
-    // How much line the picture is actually asking for, in screen pixels, with
-    // structure counted in full and fine detail at a third. The weighting is
-    // the whole point of measuring it this way: a stained-glass window and a
-    // grainy snapshot can want the same total length of line, but one is asking
-    // for borders and the other for the last of its noise. Giving the second
-    // one four times the ink is exactly how a drawing turns to mush.
-    //
-    // A simple picture never reaches the floor and is unaffected — a logo wants
-    // a third of it. A dense one earns up to four times as much room.
     let want = 0;
     for (const p of paths) want += p.len * kx * (p.tier < 2 ? 1 : 0.3);
     const base = (this.w + this.h) * 6;
     const budget = Math.max(base, Math.min(base * 4, want * 2));
-    const cap = Math.round(220 * budget / base); // rises with it, and still bounds the 2-opt
+    const cap = Math.round(220 * budget / base);
     const kept = [];
     let spent = 0;
     for (const p of paths) {
@@ -951,8 +847,6 @@ class Component extends DCLogic {
     return { pts: out, cut };
   }
 
-  // Median gradient around the frame: grain, compression mush and paper
-  // texture, with none of the subject's real edges in it.
   borderGrain(mag, w, h) {
     const band = Math.max(1, Math.round(Math.min(w, h) * 0.02));
     const vals = [];
@@ -968,33 +862,17 @@ class Component extends DCLogic {
     return vals[Math.floor(vals.length * 0.5)];
   }
 
-  // A transparent PNG arrives already cut out: the artist has said exactly
-  // where the subject is, for nothing. That is the only background removal
-  // here, and deliberately so — flooding colour in from the frame to guess at
-  // a background was built, measured and taken back out. It did nothing on a
-  // cluttered photo (it correctly refuses to run, which is the case that
-  // needed help), little on a plain one (a plain background has no edges to
-  // waste ink on in the first place), and it could eat into a subject whose
-  // colour ran close to its backdrop. The black-and-white pass below is what
-  // actually earned its place.
   alphaMask(alpha, w, h) {
     const n = w * h, mask = new Uint8Array(n);
     let clear = 0;
     for (let i = 0; i < n; i++) if (alpha[i] < 0.5) clear++;
-    if (clear < n * 0.015) { mask.fill(1); return mask; } // opaque: nothing to cut
+    if (clear < n * 0.015) { mask.fill(1); return mask; }
     for (let i = 0; i < n; i++) mask[i] = alpha[i] < 0.5 ? 0 : 1;
-    // soft edges and stray half-transparent pixels leave speckle on both sides
     this.despeckle(mask, 1, Math.max(24, n * 0.003), w, h);
     this.despeckle(mask, 0, Math.max(12, n * 0.0006), w, h);
     return mask;
   }
 
-  // Where to start looking, decided rather than asked. Saliency is averaged
-  // over a coarse grid — one bright speck shouldn't win, a sustained region
-  // should — and nudged gently toward the middle, because that is where people
-  // put the thing they were photographing. Several peaks, not one, so a subject
-  // that comes in pieces (a logo's separate marks, a person and their shirt)
-  // doesn't come back as only the loudest piece of itself.
   seedPoints(sal, w, h) {
     const cw = Math.max(1, Math.ceil(w / 20)), ch = Math.max(1, Math.ceil(h / 20));
     const gw = Math.ceil(w / cw), gh = Math.ceil(h / ch);
@@ -1008,7 +886,6 @@ class Component extends DCLogic {
     for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
       const g = gy * gw + gx;
       const u = (gx + 0.5) / gw - 0.5, v = (gy + 0.5) / gh - 0.5;
-      // enough of a centre bias to break ties, not enough to invent a subject
       score[g] = cnt[g] ? (sum[g] / cnt[g]) * (1 - 0.5 * Math.min(1, (u * u + v * v) * 4)) : 0;
       if (score[g] > top) top = score[g];
     }
@@ -1021,15 +898,8 @@ class Component extends DCLogic {
     for (const g of order) {
       if (seeds.length >= 4) break;
       const gx = g % gw, gy = (g / gw) | 0;
-      // Keep them well apart. Left to itself, saliency piles every seed onto the
-      // single most contrasty thing in the frame — all four onto someone's hair,
-      // and the watershed dutifully returns the hair. Forcing them a fifth of
-      // the picture apart makes them sample the subject instead of one feature
-      // of it, which is the difference between a head and a haircut.
       if (taken.some((t) => Math.abs(t[0] - gx) < 4 && Math.abs(t[1] - gy) < 4)) continue;
       taken.push([gx, gy]);
-      // aim at the most salient pixel in the cell rather than its middle, which
-      // may well be background even when the cell as a whole is subject
       let best = -1, bx = 0, by = 0;
       for (let y = gy * ch; y < Math.min(h, (gy + 1) * ch); y++) {
         for (let x = gx * cw; x < Math.min(w, (gx + 1) * cw); x++) {
@@ -1042,25 +912,6 @@ class Component extends DCLogic {
     return seeds;
   }
 
-  // Marker-based watershed, and what makes guessing the seed survivable.
-  //
-  // Two floods rise through the gradient at once — one from the pixel you
-  // pointed at, one from the frame — and every pixel joins whichever reaches it
-  // first over the lowest ground. Where they meet is the boundary, and it lands
-  // on the highest ridge between them, which is the edge of the thing you
-  // pointed at.
-  //
-  // The competition is the entire point. A one-sided fill from the frame only
-  // has to find a single weak pixel to pour through, which is how the old
-  // background removal ate a cheek. Here the background can only take a pixel by
-  // reaching it over lower ground than the subject does, so a soft edge costs it
-  // the race instead of handing it the picture. It also can't leak through a gap
-  // in a contour, because there is no gap to find: every pixel ends up labelled,
-  // and the boundary is closed by construction.
-  //
-  // Flooded with a bucket queue rather than a heap — gradients quantise to 512
-  // levels, and pixels are only ever pushed at or above the level being drained,
-  // so one forward sweep is the whole priority queue.
   watershed(mag, sub, bg, w, h) {
     const n = w * h, BINS = 512, SCALE = 1443 / BINS;
     const label = new Uint8Array(n), buckets = [];
@@ -1069,10 +920,6 @@ class Component extends DCLogic {
       const v = mag[i];
       return v <= 0 ? 0 : Math.min(BINS - 1, Math.floor(v / SCALE));
     };
-    // Markers all start at the bottom, whatever the gradient happens to be
-    // under them. They're where the floods begin, not terrain to be crossed —
-    // and a seed that lands on a bit of texture shouldn't have to wait while
-    // the other flood drains the entire picture.
     for (let k = 0; k < sub.length; k++) if (!label[sub[k]]) { label[sub[k]] = 1; buckets[0].push(sub[k]); }
     for (let k = 0; k < bg.length; k++) if (!label[bg[k]]) { label[bg[k]] = 2; buckets[0].push(bg[k]); }
 
@@ -1088,18 +935,13 @@ class Component extends DCLogic {
           if (label[j]) continue;
           label[j] = L;
           const b = bin(j);
-          buckets[b > level ? b : level].push(j); // never below the level being drained
+          buckets[b > level ? b : level].push(j);
         }
       }
     }
     return label;
   }
 
-  // Turn the points you clicked into a keep mask. The markers are the argument
-  // the watershed settles: the subject is a small disc around each click, the
-  // background is the frame — minus any stretch of frame that matches something
-  // you pointed at, so a subject running off the bottom edge isn't declared
-  // background by the very border it bleeds into.
   seededMask(rgb, mag, seeds, w, h) {
     const n = w * h;
     const sub = [], bg = [];
@@ -1128,17 +970,9 @@ class Component extends DCLogic {
       }
       return false;
     };
-    // The frame is the background marker, except where it looks like the thing
-    // you pointed at — a subject running off the bottom edge shouldn't be
-    // declared background by the very border it bleeds into. Those stretches
-    // are left unclaimed rather than made subject: claiming them would hand the
-    // subject any backdrop that merely resembles it, which on a portrait against
-    // a warm wall is most of the wall. Unclaimed, they just go to whichever
-    // flood reaches them over lower ground, which is the right answer both ways.
     const edge = (i) => { if (!mine(i)) bg.push(i); };
     for (let x = 0; x < w; x++) { edge(x); edge((h - 1) * w + x); }
     for (let y = 0; y < h; y++) { edge(y * w); edge(y * w + w - 1); }
-    // the whole frame looks like the thing you clicked: no background to find
     if (bg.length < (w + h) * 0.25) return null;
 
     const label = this.watershed(mag, sub, bg, w, h);
@@ -1146,14 +980,12 @@ class Component extends DCLogic {
     for (let i = 0; i < n; i++) mask[i] = label[i] === 1 ? 1 : 0;
     let keep = 0;
     for (let i = 0; i < n; i++) keep += mask[i];
-    if (keep < n * 0.005) return null; // a click that caught nothing
+    if (keep < n * 0.005) return null;
     this.despeckle(mask, 1, Math.max(24, n * 0.002), w, h);
     this.despeckle(mask, 0, Math.max(12, n * 0.0006), w, h);
     return mask;
   }
 
-  // flip runs of `v` smaller than `minArea` — the speckle filter behind both
-  // the alpha mask and the black-and-white pass
   despeckle(bin, v, minArea, w, h) {
     const n = w * h, seen = new Uint8Array(n), comp = [], stack = [];
     for (let s = 0; s < n; s++) {
@@ -1173,8 +1005,6 @@ class Component extends DCLogic {
     }
   }
 
-  // 4-connected morphology, r single-pixel passes. The frame counts as solid,
-  // so a subject running off the edge of the picture isn't shaved back from it.
   erode(src, w, h, r) {
     let cur = src;
     for (let pass = 0; pass < r; pass++) {
@@ -1209,11 +1039,6 @@ class Component extends DCLogic {
     return cur;
   }
 
-  // Black and white, thresholded against a local average instead of one global
-  // cutoff — a face lit from one side keeps both cheeks that way, where a single
-  // cutoff would drop the shaded half into solid black. Flat areas fall on the
-  // light side of their own average, which is what keeps the stylus off the
-  // paper where there's nothing to draw.
   bilevel(gray, keep, w, h) {
     const n = w * h, iw = w + 1;
     const sum = new Float64Array(iw * (h + 1)), cnt = new Uint32Array(iw * (h + 1));
@@ -1235,18 +1060,13 @@ class Component extends DCLogic {
       const x1 = Math.min(w, x + r + 1), y1 = Math.min(h, y + r + 1);
       const a = y1 * iw + x1, b = y0 * iw + x1, c = y1 * iw + x0, d = y0 * iw + x0;
       const k = cnt[a] - cnt[b] - cnt[c] + cnt[d];
-      if (k < 12) continue; // window barely inside the mask: no average worth trusting
-      // 12% under the local average — past sensor noise and paper texture, but
-      // still low enough to hold soft shading like a cheekbone
+      if (k < 12) continue;
       if (gray[i] * k < (sum[a] - sum[b] - sum[c] + sum[d]) * 0.88) out[i] = 1;
     }
     this.despeckle(out, 1, Math.max(6, n * 0.00012), w, h);
     return out;
   }
 
-  // the silhouette: kept pixels with a hole beside them. Pixels against the
-  // raster frame don't count, so an image with nothing removed draws no box
-  // around itself and a subject running off the edge stays open there.
   maskOutline(mask, w, h) {
     const out = new Uint8Array(w * h);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -1258,8 +1078,6 @@ class Component extends DCLogic {
     return out;
   }
 
-  // where the black meets the white inside the kept area. Both sides have to be
-  // kept pixels, which is what stops this from re-drawing the silhouette.
   regionOutline(dark, keep, w, h) {
     const out = new Uint8Array(w * h);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -1271,34 +1089,16 @@ class Component extends DCLogic {
     return out;
   }
 
-  // The one thing thresholding can't do: a tonal edge too soft to ever cross
-  // it, like the line of a jaw against a neck. Canny, confined to the kept area
-  // and held off the pixels the first two tiers already own, so it fills in
-  // detail instead of tracing the same lines a second time.
   detailEdges(mag, nms, keep, claimed, grain, w, h) {
     const n = w * h, empty = new Uint8Array(n);
     const strong = this.percentile(mag, 0.999, keep);
-    if (strong < 20) return empty; // flat or near-flat: nothing left to find
-    const gated = nms.slice(); // ours to blank out — the caller keeps its copy intact
+    if (strong < 20) return empty;
+    const gated = nms.slice();
     for (let i = 0; i < n; i++) if (!keep[i] || claimed[i]) gated[i] = 0;
-    // Density percentile keeps roughly the strongest 10% of the subject, which
-    // is right for a photo. Line art has far fewer edge pixels than that, so the
-    // percentile lands in the noise — the floor keeps a barely-there image from
-    // lighting up everything as an edge. The grain term is the other floor: on a
-    // grainy shot of something flat-toned, the strongest 10% of the subject is
-    // grain, and this tier would happily scribble sandpaper over the whole
-    // drawing. On anything clean it's zero and does nothing.
     const hi = Math.max(this.percentile(mag, 0.90, keep), strong * 0.04, grain * 3);
     return this.hysteresis(gated, w, h, hi, hi * 0.4);
   }
 
-  // Sobel over colour rather than brightness alone. A warm subject against a
-  // cool backdrop can be an obvious edge to the eye and almost none at all in
-  // luma — skin against grey is exactly that, a few levels apart in brightness
-  // and twenty in blue — and an edge nobody can see is an edge the background
-  // fill walks straight through. Per pixel the steepest channel wins, so what
-  // non-maximum suppression gets handed is still one coherent direction.
-  // Tone stays a luma question; only edges become a colour one.
   colorSobel(rgb, w, h) {
     const n = w * h;
     const mag = new Float32Array(n), gxs = new Float32Array(n), gys = new Float32Array(n);
@@ -1314,11 +1114,6 @@ class Component extends DCLogic {
     return { mag, gx: gxs, gy: gys };
   }
 
-  // Frequency-tuned saliency: how far each pixel's colour sits from the average
-  // of the whole picture, measured on a smoothed copy so texture doesn't read as
-  // interest. It's a crude stand-in for "what is this a photograph of", but a
-  // photographer's subject is usually the thing that isn't the same colour as
-  // everything else, and it costs six blur passes.
   saliency(rgb, w, h) {
     const n = w * h, out = new Float32Array(n), plane = new Float32Array(n);
     const soft = [], mean = [];
@@ -1335,7 +1130,6 @@ class Component extends DCLogic {
     return out;
   }
 
-  // separable 3x3 gaussian, edge-clamped — takes the bite out of sensor noise
   blur3(src, w, h) {
     const tmp = new Float32Array(src.length), out = new Float32Array(src.length);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -1361,10 +1155,6 @@ class Component extends DCLogic {
       gxs[i] = gx; gys[i] = gy;
       mag[i] = Math.hypot(gx, gy);
     }
-    // Copy the outermost ring in from its neighbour rather than leaving it at
-    // zero. A ring of no-gradient is a free lap around the picture, and the
-    // watershed will take it: the background flood runs along the bottom edge
-    // at no cost and comes up underneath a subject that runs off it.
     for (let x = 0; x < w; x++) {
       const t = w + x, b = (h - 2) * w + x;
       mag[x] = mag[t]; gxs[x] = gxs[t]; gys[x] = gys[t];
@@ -1378,10 +1168,6 @@ class Component extends DCLogic {
     return { mag, gx: gxs, gy: gys };
   }
 
-  // non-maximum suppression — without it edges come out as fat blobs and the
-  // contour tracer wanders around inside them instead of following a line.
-  // Samples the two neighbours along the true gradient ray by interpolation
-  // rather than snapping to the nearest axis, which is what keeps 45° arcs alive.
   suppress(mag, gxs, gys, w, h) {
     const out = new Float32Array(w * h);
     for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
@@ -1400,19 +1186,13 @@ class Component extends DCLogic {
         p = mag[i + sy] * (1 - t) + mag[i + sy + sx] * t;
         q = mag[i - sy] * (1 - t) + mag[i - sy - sx] * t;
       }
-      // asymmetric compare breaks the exact-tie plateaus a hard-edged logo
-      // produces, so those edges thin to 1px instead of fragmenting the trace
       if (m >= p && m > q) out[i] = m;
     }
     return out;
   }
 
-  // histogram percentile — adapts the threshold to the image instead of a fixed
-  // cutoff, which is what keeps both flat photos and hard line art usable.
-  // `within`, when given, restricts it to the kept area, so the empty margin
-  // around a transparent PNG can't drag the threshold down to nothing.
   percentile(arr, p, within) {
-    const BINS = 512, SCALE = 1443 / BINS; // 1443 ≈ max sobel magnitude on 0..255 luma
+    const BINS = 512, SCALE = 1443 / BINS;
     const hist = new Uint32Array(BINS);
     let count = 0;
     for (let i = 0; i < arr.length; i++) {
@@ -1431,7 +1211,6 @@ class Component extends DCLogic {
     return BINS * SCALE;
   }
 
-  // grow strong edges through weak ones, so contours survive as long runs
   hysteresis(nms, w, h, hi, lo) {
     const edge = new Uint8Array(w * h), stack = [];
     for (let i = 0; i < nms.length; i++) if (nms[i] >= hi) { edge[i] = 1; stack.push(i); }
@@ -1448,12 +1227,11 @@ class Component extends DCLogic {
     return edge;
   }
 
-  // walk the 8-connected edge set into runs of pixel indices
   traceEdges(edge, w, h) {
     const used = new Uint8Array(w * h);
     const DX = [1, 1, 0, -1, -1, -1, 0, 1];
     const DY = [0, 1, 1, 1, 0, -1, -1, -1];
-    const TURN = [0, 1, 7, 2, 6, 3, 5, 4]; // straight on first, then progressively sharper turns
+    const TURN = [0, 1, 7, 2, 6, 3, 5, 4];
 
     const step = (x, y, dir) => {
       for (let t = 0; t < 8; t++) {
@@ -1475,7 +1253,6 @@ class Component extends DCLogic {
       return k;
     };
 
-    // walks away from an already-claimed pixel, returning only the new ones
     const walk = (from) => {
       const out = [];
       let i = from, dir = -1;
@@ -1492,15 +1269,11 @@ class Component extends DCLogic {
     };
 
     const runs = [];
-    // pass 0 starts only at true endpoints so open contours trace end-to-end;
-    // pass 1 mops up whatever is left, which is closed loops
     for (let pass = 0; pass < 2; pass++) {
       for (let start = 0; start < edge.length; start++) {
         if (!edge[start] || used[start]) continue;
         if (pass === 0 && openNeighbours(start) !== 1) continue;
         used[start] = 1;
-        // two walks from the same seed: the first claims one direction, the
-        // second picks up the other, so a mid-contour seed still yields one run
         const fwd = walk(start);
         const back = walk(start);
         const run = back.reverse().concat([start], fwd);
@@ -1510,8 +1283,6 @@ class Component extends DCLogic {
     return runs;
   }
 
-  // Ramer–Douglas–Peucker: a traced contour is one point per pixel, which is far
-  // more vertices than the stylus needs
   rdp(pts, eps) {
     if (pts.length < 3) return pts;
     const keep = new Uint8Array(pts.length);
@@ -1539,8 +1310,6 @@ class Component extends DCLogic {
     return out;
   }
 
-  // a contour that comes back to where it started. Line art is made of these:
-  // trace a pen stroke and you get a loop round its outline, not a line.
   isLoop(p) {
     if (p.length < 5) return false;
     const ax = this.w || 1, ay = this.h || 1;
@@ -1548,24 +1317,17 @@ class Component extends DCLogic {
     return Math.hypot((a.x - b.x) * ax, (a.y - b.y) * ay) < 3;
   }
 
-  // greedy nearest-neighbour over contour endpoints, either end allowed to lead.
-  // Connectors are unavoidable on this toy, so the job is to keep them short.
   orderPaths(paths) {
     const used = new Uint8Array(paths.length), out = [];
-    // points are normalised but the screen is 16:10 — comparing raw normalised
-    // distance under-weights horizontal travel, so scale back to real pixels
     const ax = this.w || 1, ay = this.h || 1;
     const loop = paths.map((p) => this.isLoop(p));
-    let cx = 0.5, cy = 0.5; // the stylus conceptually starts mid-screen
+    let cx = 0.5, cy = 0.5;
     for (let k = 0; k < paths.length; k++) {
       let best = -1, bestD = Infinity, rev = false;
       for (let i = 0; i < paths.length; i++) {
         if (used[i]) continue;
         const p = paths[i];
         if (loop[i]) {
-          // A loop can be joined anywhere along itself, so what decides whether
-          // to go there next is its closest point — not the arbitrary pixel the
-          // tracer happened to open it at, which may be right across the screen.
           const step = Math.max(1, (p.length / 24) | 0);
           for (let m = 0; m < p.length; m += step) {
             const d = ((p[m].x - cx) * ax) ** 2 + ((p[m].y - cy) * ay) ** 2;
@@ -1588,19 +1350,6 @@ class Component extends DCLogic {
     return this.seatLoops(this.shortenHops(out));
   }
 
-  // Where each loop is joined and left.
-  //
-  // Everything above treats a contour as having two ends. A loop's two ends are
-  // the same point, so a loop can only be entered at the pixel the tracer opened
-  // it at, and the stylus crosses the picture to get there — which is where the
-  // long diagonal slashes across a drawing come from. On line art it's nearly
-  // every hop, because nearly every contour is a loop.
-  //
-  // So: join it beside wherever the stylus already is. And having gone all the
-  // way round, the stylus is back at the entry with the whole loop already down,
-  // so let it carry on round to the point nearest whatever it draws next. That
-  // stretch is drawn over a line that is already there — it costs a moment, and
-  // nothing at all to look at.
   seatLoops(order) {
     const ax = this.w || 1, ay = this.h || 1;
     const d2 = (a, b) => ((a.x - b.x) * ax) ** 2 + ((a.y - b.y) * ay) ** 2;
@@ -1609,7 +1358,6 @@ class Component extends DCLogic {
       for (let k = 0; k < ring.length; k++) { const d = d2(ring[k], t); if (d < bd) { bd = d; bi = k; } }
       return bi;
     };
-    // first, where each one is joined — that depends only on what came before it
     const rings = [], enter = [];
     let cur = { x: 0.5, y: 0.5 };
     for (const p of order) {
@@ -1623,9 +1371,8 @@ class Component extends DCLogic {
       }
       const at = near(ring, cur);
       enter.push(at);
-      cur = ring[at]; // one full turn ends where it began
+      cur = ring[at];
     }
-    // then where each one is left, now that the next join is known
     for (let i = 0; i < order.length; i++) {
       const ring = rings[i];
       if (!ring) continue;
@@ -1644,20 +1391,12 @@ class Component extends DCLogic {
     return order;
   }
 
-  // 2-opt over the contour order. Reversing a run of contours also flips each
-  // one's direction, which costs the stylus nothing — greedy always strands a
-  // few long crossing jumps, and those read as slashes across the drawing.
   shortenHops(order) {
     const n = order.length;
     if (n < 3) return order;
     const start = { x: 0.5, y: 0.5 };
     const ax = this.w || 1, ay = this.h || 1;
     const head = (p) => p[0], tail = (p) => p[p.length - 1];
-    // Squared, not straight, distance. Least total travel is the wrong thing to
-    // ask for: what spoils a drawing isn't how far the stylus moved between
-    // strokes, it's one long line ruled across the middle of it. A hop twice as
-    // long is worse than twice as bad, so squaring makes the router break up the
-    // slashes even when that means more short nicks and further to travel.
     const gap = (a, b) => ((a.x - b.x) * ax) ** 2 + ((a.y - b.y) * ay) ** 2;
     for (let pass = 0; pass < 6; pass++) {
       let gain = 0;
@@ -1687,7 +1426,6 @@ class Component extends DCLogic {
     }
     this.auto = {
       pts, i: 0, phase: 'seek', last: performance.now(),
-      // aim for about a minute at 1x, but never a crawl and never a blur
       pxPerSec: Math.max(220, Math.min(1400, total / 55)),
     };
     this.autoMult = 1;
@@ -1697,8 +1435,6 @@ class Component extends DCLogic {
     this.ensureLoop();
   }
 
-  // seek → erasing → draw. The stylus cranks to the first point (drawing a travel
-  // line), the case shakes that line away, and only then does the image go down.
   stepAuto(now) {
     const a = this.auto;
     if (a.phase === 'erasing') {
@@ -1708,10 +1444,10 @@ class Component extends DCLogic {
     }
     if (this.eraseState !== 'idle') { a.last = now; return; }
 
-    const dt = Math.min(0.05, Math.max(0, (now - a.last) / 1000)); // clamped so a backgrounded tab can't teleport the stylus
+    const dt = Math.min(0.05, Math.max(0, (now - a.last) / 1000));
     a.last = now;
     let budget = a.pxPerSec * this.autoMult * dt;
-    const step = Math.max(0.6, this.grid); // substep at the wire grid to keep the stair-stepped diagonals
+    const step = Math.max(0.6, this.grid);
     const sx0 = this.sx, sy0 = this.sy;
 
     for (let guard = 0; budget > 0 && guard < 8000; guard++) {
@@ -1720,7 +1456,7 @@ class Component extends DCLogic {
       const tx = target.x * this.w, ty = target.y * this.h;
       const dx = tx - this.sx, dy = ty - this.sy;
       const d = Math.hypot(dx, dy);
-      if (d < 0.05) { // standing on the vertex
+      if (d < 0.05) {
         if (a.phase === 'seek') {
           a.phase = 'erasing'; a.i = 1;
           this.triggerErase('auto', true);
@@ -1735,8 +1471,6 @@ class Component extends DCLogic {
       budget -= move;
     }
 
-    // one flush per frame instead of per substep — spin the knobs by the same
-    // px-per-degree ratio a hand drag uses, so the dials read as physically driven
     const mdx = this.sx - sx0, mdy = this.sy - sy0;
     const k = this.speed * 0.145;
     if (k > 0) {
@@ -1777,7 +1511,6 @@ class Component extends DCLogic {
     this.setSpeed(this.autoMult === 1 ? 2 : this.autoMult === 2 ? 4 : 1);
   }
 
-  // no setState in this component — chrome updates go through the refs directly
   syncChrome() {
     const active = !!this.auto;
     const draw = this.drawRef.current, sp = this.speedRef.current, lc = this.legendCenterRef.current;
